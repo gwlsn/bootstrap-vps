@@ -246,10 +246,17 @@ EOF
 chown root:root "$AUTO_REBOOT_CONFIG"
 chmod 0644 "$AUTO_REBOOT_CONFIG"
 
-log "Enabling and reloading SSH"
+log "Applying SSH configuration"
 
-systemctl enable ssh
-systemctl reload ssh
+systemctl daemon-reload
+
+if systemctl is-active --quiet ssh.socket || systemctl is-enabled --quiet ssh.socket; then
+    systemctl enable ssh.socket
+    systemctl restart ssh.socket
+else
+    systemctl enable ssh.service
+    systemctl restart ssh.service
+fi
 
 log "Locking the root password"
 passwd --lock root
