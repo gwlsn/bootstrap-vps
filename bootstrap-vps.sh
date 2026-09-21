@@ -65,18 +65,28 @@ apt-get install -y \
 log "Setting timezone to ${TIMEZONE}"
 timedatectl set-timezone "$TIMEZONE"
 
-log "Creating user ${NEW_USER}"
-adduser \
-    --disabled-password \
-    --gecos "" \
-    "$NEW_USER"
+if id "$NEW_USER" >/dev/null 2>&1; then
+    log "User ${NEW_USER} already exists"
+else
+    log "Creating user ${NEW_USER}"
+    adduser \
+        --disabled-password \
+        --gecos "" \
+        "$NEW_USER"
+fi
 
 log "Adding ${NEW_USER} to the sudo group"
 usermod -aG sudo "$NEW_USER"
 
-log "Setting the password used by ${NEW_USER} for sudo"
-printf '\nSSH password login will be disabled. This password is for sudo and local console access.\n\n'
-passwd "$NEW_USER"
+PASSWORD_STATUS="$(passwd -S "$NEW_USER" | awk '{print $2}')"
+
+if [[ "$PASSWORD_STATUS" == "P" ]]; then
+    log "${NEW_USER} already has a password configured"
+else
+    log "Setting the password used by ${NEW_USER} for sudo"
+    printf '\nSSH password login will be disabled. This password is for sudo and local console access.\n\n'
+    passwd "$NEW_USER"
+fi
 
 log "Downloading SSH public keys from GitHub user ${GITHUB_USER}"
 
@@ -151,6 +161,14 @@ EOF
 
 chown root:root "$SSHD_DROPIN"
 chmod 0644 "$SSHD_DROPIN"
+
+log "Ensuring SSH runtime directory exists"
+install \
+    -d \
+    -o root \
+    -g root \
+    -m 0755 \
+    /run/sshd
 
 log "Validating SSH configuration"
 sshd -t
