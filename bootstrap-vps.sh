@@ -22,6 +22,10 @@ die() {
     exit 1
 }
 
+apt_wait() {
+    apt-get -o DPkg::Lock::Timeout=300 "$@"
+}
+
 trap 'printf "\nERROR: Script failed on line %s.\n" "$LINENO" >&2' ERR
 
 if [[ $EUID -ne 0 ]]; then
@@ -47,13 +51,13 @@ export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
 
 log "Updating package lists"
-apt-get update
+apt_wait update
 
 log "Upgrading installed packages"
-apt-get upgrade -y
+apt_wait upgrade -y
 
 log "Installing required packages"
-apt-get install -y \
+apt_wait install -y \
     ca-certificates \
     curl \
     fail2ban \
@@ -251,7 +255,7 @@ log "Locking the root password"
 passwd --lock root
 
 log "Removing unnecessary packages"
-apt-get autoremove -y
+apt_wait autoremove -y
 
 SERVER_IPS="$(hostname -I 2>/dev/null | xargs || true)"
 
